@@ -185,6 +185,10 @@
     <details id="preview-section" style="display:none;margin-top:12px"><summary class="preview-toggle">Preview extracted text</summary><div id="preview-box" class="preview-box"></div></details>
     <input type="file" id="file-input" accept=".docx,.pdf,.txt,.md" style="display:none">
   </div>
+  <div id="context-section" style="display:none;margin-top:20px">
+    <div class="label" style="margin-bottom:8px">Additional context (optional)</div>
+    <textarea id="context-input" placeholder="Add context to improve the review, e.g. 'This is a weekly market update email for all regions' or 'VIP segment only — users are experienced traders'" style="width:100%;min-height:80px;max-height:200px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:12px 14px;font-size:13px;color:#f5f5f5;font-family:'DM Sans',sans-serif;line-height:1.6;resize:vertical;outline:none;transition:border-color 0.2s;" onfocus="this.style.borderColor='rgba(188,255,47,0.35)'" onblur="this.style.borderColor='rgba(255,255,255,0.12)'"></textarea>
+  </div>
   <button id="btn-analyze" class="btn-primary disabled" disabled>Upload a file to begin</button>
   <div id="loading-bar" class="loading-bar" style="display:none"><div class="loading-pill" id="loading-text">Analyzing...</div></div>
   <div id="timer-bar" class="timer-bar" style="display:none"><div id="timer-pill" class="timer-pill"><span class="dot"></span><span id="timer-text">0:00</span></div></div>
@@ -488,21 +492,20 @@ async function handleFile(file){
   $("dropzone").style.display="none";$("file-loaded").style.display="flex";
   $("file-icon-box").className="file-icon loading";$("file-icon-box").textContent="\u23F3";
   $("file-name-text").textContent=file.name;$("file-meta-text").textContent=formatSize(file.size)+" \u00B7 Extracting text...";
-  $("preview-section").style.display="none";updateButton("extracting");
-  startTimer();
+  $("preview-section").style.display="none";$("context-section").style.display="none";updateButton("extracting");
   try{
     extractedContent=await extractText(file);
     if(!extractedContent||extractedContent.trim().length<20){showError("Could not extract meaningful text. The file may be image-only, corrupted, or the API may be rate-limited. Try again in a moment.");extractedContent="";updateButton("empty");stopTimer();return;}
     $("file-icon-box").className="file-icon ready";$("file-icon-box").textContent="\u2705";
     $("file-meta-text").textContent=formatSize(file.size)+" \u00B7 "+wordCount(extractedContent).toLocaleString()+" words extracted";
     $("preview-section").style.display="block";
+    $("context-section").style.display="block";
     $("preview-box").textContent=extractedContent.slice(0,3000)+(extractedContent.length>3000?"\n\n... (truncated)":"");
-    updateButton("loading");
-    runExtraction();
+    updateButton("ready");
   }catch(err){showError("Error reading file: "+err.message);extractedContent="";updateButton("empty");stopTimer();}
 }
 
-function clearFile(){extractedContent="";currentFileName="";scorecardResults=[];extractedItems=[];$("dropzone").style.display="block";$("file-loaded").style.display="none";$("preview-section").style.display="none";$("results").style.display="none";$("time-saved").style.display="none";$("picker-section").style.display="none";$("file-input").value="";updateButton("empty");hideError();resetTimer();}
+function clearFile(){extractedContent="";currentFileName="";scorecardResults=[];extractedItems=[];$("dropzone").style.display="block";$("file-loaded").style.display="none";$("preview-section").style.display="none";$("context-section").style.display="none";$("context-input").value="";$("results").style.display="none";$("time-saved").style.display="none";$("picker-section").style.display="none";$("file-input").value="";updateButton("empty");hideError();resetTimer();}
 function updateButton(s){const b=$("btn-analyze");if(s==="extracting"){b.disabled=true;b.className="btn-primary disabled";b.textContent="\u23F3 Reading document...";}else if(s==="loading"){b.disabled=true;b.className="btn-primary disabled";b.textContent="\u23F3 Analyzing...";}else if(s==="ready"){b.disabled=false;b.className="btn-primary active";b.textContent="Run Compliance Review";}else{b.disabled=true;b.className="btn-primary disabled";b.textContent="Upload a file to begin";}}
 function showError(m){$("error-box").style.display="block";$("error-box").textContent="\u26A0\uFE0F "+m;}
 function hideError(){$("error-box").style.display="none";}
@@ -510,7 +513,7 @@ function hideError(){$("error-box").style.display="none";}
 async function extractItemsFromDoc(){
   const maxChars=40000;
   const docText=extractedContent.length>maxChars?extractedContent.slice(0,maxChars)+"\n\n[Document truncated at "+maxChars+" characters. Only the content above will be analyzed.]":extractedContent;
-  const resp=await fetch("/.netlify/functions/ai-proxy",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:16000,system:EXTRACTION_PROMPT,messages:[{role:"user",content:"Extract the email/push/marketing content from this document:\n\n"+docText}]})});
+  const resp=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:16000,system:EXTRACTION_PROMPT,messages:[{role:"user",content:"Extract the email/push/marketing content from this document:\n\n"+docText}]})});
   const data=await resp.json();
   if(data.error){throw new Error(data.error.message||"API error during extraction");}
   const rawText=data.content?.map(b=>b.text||"").join("")||"";
@@ -577,7 +580,9 @@ async function extractItemsFromDoc(){
 }
 
 async function scoreItem(item){
-  const resp=await fetch("/.netlify/functions/ai-proxy",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:8000,system:COMPLIANCE_RULES,messages:[{role:"user",content:"Review this "+item.type.replace("_"," ")+" marketing content for OKX compliance.\n\nContent name: "+item.name+"\nTarget region: "+item.targetRegion+"\n\n---\n"+item.content}]})});
+  const userContext=$("context-input").value.trim();
+  const contextBlock=userContext?"\n\nAdditional context from the reviewer:\n"+userContext:"";
+  const resp=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:8000,system:COMPLIANCE_RULES,messages:[{role:"user",content:"Review this "+item.type.replace("_"," ")+" marketing content for OKX compliance.\n\nContent name: "+item.name+"\nTarget region: "+item.targetRegion+contextBlock+"\n\n---\n"+item.content}]})});
   const data=await resp.json();
   if(data.error){throw new Error(data.error.message||"API error during scoring");}
   const text=data.content?.map(b=>b.text||"").join("")||"";
@@ -588,7 +593,7 @@ async function scoreItem(item){
 async function runExtraction(){
   if(!extractedContent.trim())return;
   hideError();$("results").style.display="none";$("time-saved").style.display="none";$("picker-section").style.display="none";$("loading-bar").style.display="block";updateButton("loading");
-  if(!timerStart)startTimer();
+  startTimer();
   try{
     $("loading-text").textContent="Identifying email & push content...";
     const extraction=await extractItemsFromDoc();
