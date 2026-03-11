@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OKX Compliance Review Agent</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";</script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0B0B14; color: #E0E0F0; font-family: 'Sora', sans-serif; min-height: 100vh; }
+  .mono { font-family: 'JetBrains Mono', monospace; }
+  .label { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #888; letter-spacing: 0.12em; text-transform: uppercase; }
+  .header { background: linear-gradient(180deg, #12121E 0%, #0B0B14 100%); border-bottom: 1px solid #1E1E2E; padding: 28px 32px; }
+  .header-inner { max-width: 960px; margin: 0 auto; display: flex; align-items: center; gap: 14px; }
+  .header-icon { width: 38px; height: 38px; border-radius: 8px; background: linear-gradient(135deg, #4F46E5, #7C3AED); display: flex; align-items: center; justify-content: center; font-size: 18px; }
+  .header h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; }
+  .header p { font-size: 12px; color: #6B7280; font-family: 'JetBrains Mono', monospace; letter-spacing: 0.04em; margin-top: 2px; }
+  .main { max-width: 960px; margin: 0 auto; padding: 28px 32px; }
+  .dropzone { border: 2px dashed #2A2A3A; border-radius: 12px; background: #15151F; padding: 48px 32px; text-align: center; cursor: pointer; transition: all 0.2s; }
+  .dropzone:hover, .dropzone.dragging { border-color: #4F46E5; background: #1A1A2E; }
+  .dropzone-icon { font-size: 36px; margin-bottom: 14px; opacity: 0.7; }
+  .dropzone-title { font-size: 15px; font-weight: 600; color: #C0C0D0; margin-bottom: 8px; }
+  .dropzone-sub { font-size: 13px; color: #6B7280; margin-bottom: 16px; }
+  .file-types { display: inline-flex; gap: 8px; padding: 6px 14px; border-radius: 6px; background: #1E1E2E; border: 1px solid #2A2A3A; }
+  .file-type-tag { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #7C7C9C; padding: 2px 8px; border-radius: 4px; background: #252535; }
+  .file-loaded { background: #15151F; border: 1px solid #2A2A3A; border-radius: 12px; padding: 20px 24px; display: flex; align-items: center; justify-content: space-between; }
+  .file-info { display: flex; align-items: center; gap: 14px; }
+  .file-icon { width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+  .file-icon.ready { background: linear-gradient(135deg, rgba(22,163,74,0.13), rgba(22,163,74,0.03)); border: 1px solid rgba(22,163,74,0.25); }
+  .file-icon.loading { background: #1E1E2E; border: 1px solid #2A2A3A; }
+  .file-name { font-size: 14px; font-weight: 600; }
+  .file-meta { font-size: 12px; color: #6B7280; font-family: 'JetBrains Mono', monospace; margin-top: 2px; }
+  .btn-remove { background: #1E1E2E; border: 1px solid #2A2A3A; border-radius: 6px; color: #888; padding: 6px 14px; cursor: pointer; font-size: 12px; font-family: 'JetBrains Mono', monospace; transition: all 0.2s; }
+  .btn-remove:hover { border-color: #DC2626; color: #FCA5A5; }
+  .preview-toggle { cursor: pointer; font-size: 12px; color: #6B7280; font-family: 'JetBrains Mono', monospace; letter-spacing: 0.04em; padding: 4px 0; margin-top: 12px; }
+  .preview-box { margin-top: 8px; background: #12121E; border: 1px solid #1E1E2E; border-radius: 8px; padding: 14px 16px; max-height: 200px; overflow: auto; font-size: 12px; color: #8888A0; font-family: 'JetBrains Mono', monospace; line-height: 1.7; white-space: pre-wrap; }
+  .btn-primary { width: 100%; border: none; border-radius: 8px; padding: 14px 32px; font-size: 14px; font-weight: 600; font-family: 'Sora', sans-serif; letter-spacing: 0.02em; cursor: pointer; transition: opacity 0.2s; margin-top: 24px; color: #FFF; }
+  .btn-primary.active { background: linear-gradient(135deg, #4F46E5, #7C3AED); opacity: 1; }
+  .btn-primary.disabled { background: #2A2A3A; opacity: 0.5; cursor: not-allowed; }
+  .btn-export { display: inline-flex; align-items: center; gap: 8px; background: #1E1E2E; border: 1px solid #2A2A3A; border-radius: 8px; padding: 10px 20px; font-size: 13px; font-weight: 600; font-family: 'Sora', sans-serif; color: #C0C0D0; cursor: pointer; transition: all 0.2s; }
+  .btn-export:hover { border-color: #4F46E5; color: #E0E0F0; background: #252535; }
+  .badge { padding: 2px 10px; border-radius: 4px; font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; font-family: 'JetBrains Mono', monospace; color: #FFF; display: inline-block; }
+  .badge-high { background: #DC2626; }
+  .badge-medium { background: #D97706; }
+  .badge-low { background: #16A34A; }
+  .overall-score { border-radius: 12px; padding: 28px 32px; margin-bottom: 24px; border: 1px solid; }
+  .overall-score.risk-high { background: linear-gradient(135deg, #2D0A0A, #111118); border-color: rgba(220,38,38,0.25); }
+  .overall-score.risk-medium { background: linear-gradient(135deg, #2D1F0A, #111118); border-color: rgba(217,119,6,0.25); }
+  .overall-score.risk-low { background: linear-gradient(135deg, #0A2D1A, #111118); border-color: rgba(22,163,74,0.25); }
+  .overall-header { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
+  .overall-emoji { font-size: 32px; }
+  .overall-label { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #888; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 4px; }
+  .overall-risk { font-size: 28px; font-weight: 700; }
+  .overall-summary { color: #B0B0C0; font-size: 14px; line-height: 1.7; }
+  .distribution { display: flex; gap: 12px; margin-bottom: 24px; padding: 16px 20px; background: #15151F; border-radius: 10px; border: 1px solid #2A2A3A; }
+  .dist-item { display: flex; align-items: center; gap: 8px; }
+  .dist-count { color: #888; font-size: 13px; font-family: 'JetBrains Mono', monospace; }
+  .category-card { background: #15151F; border: 1px solid #2A2A3A; border-radius: 10px; overflow: hidden; transition: border-color 0.2s; margin-bottom: 8px; }
+  .category-card.expanded { border-color: rgba(79,70,229,0.3); }
+  .card-header { width: 100%; border: none; background: none; padding: 16px 20px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; color: #E0E0F0; font-family: 'Sora', sans-serif; }
+  .card-left { display: flex; align-items: center; gap: 12px; }
+  .card-icon { font-size: 18px; }
+  .card-name { font-weight: 600; font-size: 14px; }
+  .card-count { border-radius: 10px; padding: 1px 8px; font-size: 11px; font-family: 'JetBrains Mono', monospace; }
+  .card-right { display: flex; align-items: center; gap: 10px; }
+  .card-arrow { color: #666; font-size: 16px; transition: transform 0.2s; display: inline-block; }
+  .card-arrow.open { transform: rotate(180deg); }
+  .card-body { padding: 0 20px 20px; border-top: 1px solid #2A2A3A; }
+  .finding { border-left: 3px solid; padding: 10px 14px; border-radius: 0 6px 6px 0; margin-bottom: 8px; color: #D0D0E0; font-size: 13px; line-height: 1.6; }
+  .suggestion { background: #1A1A2A; border-left: 3px solid #4F46E5; padding: 10px 14px; border-radius: 0 6px 6px 0; margin-bottom: 8px; color: #C0C0D0; font-size: 13px; line-height: 1.6; }
+  .section-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #888; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 10px; margin-top: 14px; }
+  .no-issues { margin-top: 14px; color: #6B7280; font-size: 13px; }
+  .flagged-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .flagged-table th { text-align: left; padding: 12px 16px; color: #888; font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 600; border-bottom: 1px solid #2A2A3A; }
+  .flagged-table td { padding: 12px 16px; border-bottom: 1px solid #1E1E2E; }
+  .flagged-phrase { color: #FCA5A5; font-family: 'JetBrains Mono', monospace; font-size: 12px; max-width: 200px; word-break: break-word; }
+  .flagged-issue { color: #D0D0E0; line-height: 1.5; }
+  .flagged-suggestion { color: #86EFAC; font-style: italic; }
+  .footer-note { margin-top: 28px; padding: 16px 20px; background: #12121E; border-radius: 10px; border: 1px solid #1E1E2E; font-size: 12px; color: #6B7280; line-height: 1.7; font-family: 'JetBrains Mono', monospace; }
+  .loading-bar { margin-top: 20px; text-align: center; }
+  .loading-pill { display: inline-block; padding: 10px 20px; border-radius: 8px; background: #15151F; border: 1px solid #2A2A3A; color: #888; font-size: 13px; font-family: 'JetBrains Mono', monospace; animation: pulse 1.5s ease-in-out infinite; }
+  .error-box { margin-top: 16px; padding: 14px 18px; border-radius: 8px; background: #2D0A0A; border: 1px solid rgba(220,38,38,0.25); color: #FCA5A5; font-size: 13px; }
+  .actions-bar { display: flex; gap: 12px; align-items: center; margin-bottom: 24px; flex-wrap: wrap; }
+  .email-tabs { display: flex; gap: 6px; margin-bottom: 20px; flex-wrap: wrap; }
+  .email-tab { padding: 8px 18px; border-radius: 8px; border: 1px solid #2A2A3A; background: #15151F; color: #888; font-size: 13px; font-weight: 600; font-family: 'Sora', sans-serif; cursor: pointer; transition: all 0.2s; }
+  .email-tab:hover { border-color: #4F46E5; color: #C0C0D0; }
+  .email-tab.active { background: linear-gradient(135deg, #4F46E5, #7C3AED); border-color: transparent; color: #FFF; }
+  .tab-risk { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-left: 8px; vertical-align: middle; }
+  .tab-risk-high { background: #DC2626; }
+  .tab-risk-medium { background: #D97706; }
+  .tab-risk-low { background: #16A34A; }
+  .detected-summary { background: #15151F; border: 1px solid #2A2A3A; border-radius: 10px; padding: 16px 20px; margin-bottom: 20px; }
+  .detected-title { font-size: 14px; font-weight: 700; margin-bottom: 10px; color: #C0C0D0; }
+  .detected-item { display: flex; align-items: center; gap: 10px; padding: 6px 0; font-size: 13px; color: #8888A0; }
+  .detected-badge { font-family: 'JetBrains Mono', monospace; font-size: 10px; padding: 2px 8px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .detected-badge.email { background: rgba(79,70,229,0.15); color: #A5B4FC; border: 1px solid rgba(79,70,229,0.3); }
+  .detected-badge.push { background: rgba(217,119,6,0.15); color: #FCD34D; border: 1px solid rgba(217,119,6,0.3); }
+  .detected-badge.social { background: rgba(22,163,74,0.15); color: #86EFAC; border: 1px solid rgba(22,163,74,0.3); }
+  .detected-badge.homepage { background: rgba(168,85,247,0.15); color: #D8B4FE; border: 1px solid rgba(168,85,247,0.3); }
+  .timer-bar { margin-top: 12px; text-align: center; }
+  .timer-pill { display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 8px; background: #15151F; border: 1px solid #2A2A3A; color: #A5B4FC; font-size: 13px; font-family: 'JetBrains Mono', monospace; }
+  .timer-pill .dot { width: 8px; height: 8px; border-radius: 50%; background: #4F46E5; animation: pulse 1s ease-in-out infinite; }
+  .timer-pill.done { color: #86EFAC; border-color: rgba(22,163,74,0.3); }
+  .timer-pill.done .dot { background: #16A34A; animation: none; }
+
+  /* Content picker */
+  .picker { margin-top: 24px; background: #15151F; border: 1px solid #2A2A3A; border-radius: 12px; padding: 20px 24px; }
+  .picker-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; flex-wrap: wrap; gap: 10px; }
+  .picker-title { font-size: 15px; font-weight: 700; color: #C0C0D0; }
+  .picker-count { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #6B7280; }
+  .picker-controls { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .picker-search { background: #1E1E2E; border: 1px solid #2A2A3A; border-radius: 6px; padding: 7px 12px; font-size: 13px; color: #E0E0F0; font-family: 'Sora', sans-serif; outline: none; width: 220px; transition: border-color 0.2s; }
+  .picker-search:focus { border-color: #4F46E5; }
+  .picker-search::placeholder { color: #555; }
+  .picker-btn { background: #1E1E2E; border: 1px solid #2A2A3A; border-radius: 6px; padding: 6px 14px; font-size: 12px; font-family: 'JetBrains Mono', monospace; color: #888; cursor: pointer; transition: all 0.2s; }
+  .picker-btn:hover { border-color: #4F46E5; color: #C0C0D0; }
+  .picker-list { max-height: 320px; overflow-y: auto; margin-bottom: 16px; }
+  .picker-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 8px; cursor: pointer; transition: background 0.15s; }
+  .picker-item:hover { background: #1A1A2E; }
+  .picker-item input[type="checkbox"] { accent-color: #4F46E5; width: 16px; height: 16px; cursor: pointer; flex-shrink: 0; }
+  .picker-item-info { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+  .picker-item-name { font-size: 13px; font-weight: 500; color: #D0D0E0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .picker-item.hidden { display: none; }
+  .btn-score { width: 100%; border: none; border-radius: 8px; padding: 14px 32px; font-size: 14px; font-weight: 600; font-family: 'Sora', sans-serif; letter-spacing: 0.02em; cursor: pointer; color: #FFF; background: linear-gradient(135deg, #4F46E5, #7C3AED); transition: opacity 0.2s; }
+  .btn-score:disabled { background: #2A2A3A; opacity: 0.5; cursor: not-allowed; }
+
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #2A2A3A; border-radius: 3px; }
+  @media (max-width: 640px) {
+    .main { padding: 16px; }
+    .header { padding: 20px 16px; }
+    .overall-score { padding: 20px; }
+    .distribution { flex-wrap: wrap; }
+    .email-tabs { gap: 4px; }
+    .email-tab { padding: 6px 12px; font-size: 12px; }
+  }
+</style>
+</head>
+<body>
+<div class="header"><div class="header-inner"><div class="header-icon">⚖️</div><div><h1>OKX Compliance Review Agent</h1><p>Email & Push Content — Legal & Compliance Scanner</p></div></div></div>
+<div class="main">
+  <div id="upload-section">
+    <div class="label" style="margin-bottom:10px">Upload email brief, BRD, or GTM doc</div>
+    <div id="dropzone" class="dropzone">
+      <div class="dropzone-icon">📄</div>
+      <div class="dropzone-title">Drop your document here</div>
+      <div class="dropzone-sub">Supports email briefs, BRDs, and GTM docs — will intelligently find email/push content</div>
+      <div class="file-types"><span class="file-type-tag">.docx</span><span class="file-type-tag">.pdf</span><span class="file-type-tag">.txt</span></div>
+    </div>
+    <div id="file-loaded" class="file-loaded" style="display:none">
+      <div class="file-info"><div id="file-icon-box" class="file-icon loading">⏳</div><div><div id="file-name-text" class="file-name"></div><div id="file-meta-text" class="file-meta"></div></div></div>
+      <button id="btn-remove" class="btn-remove">✕ Remove</button>
+    </div>
+    <details id="preview-section" style="display:none;margin-top:12px"><summary class="preview-toggle">Preview extracted text</summary><div id="preview-box" class="preview-box"></div></details>
+    <input type="file" id="file-input" accept=".docx,.pdf,.txt,.md" style="display:none">
+  </div>
+  <button id="btn-analyze" class="btn-primary disabled" disabled>Upload a file to begin</button>
+  <div id="loading-bar" class="loading-bar" style="display:none"><div class="loading-pill" id="loading-text">Analyzing...</div></div>
+  <div id="timer-bar" class="timer-bar" style="display:none"><div id="timer-pill" class="timer-pill"><span class="dot"></span><span id="timer-text">0:00</span></div></div>
+  <div id="error-box" class="error-box" style="display:none"></div>
+  <div id="picker-section" style="display:none"></div>
+  <div id="results" style="display:none;margin-top:32px">
+    <div id="time-saved" style="display:none;margin-bottom:16px;padding:12px 18px;border-radius:10px;background:linear-gradient(135deg,rgba(79,70,229,0.08),rgba(22,163,74,0.08));border:1px solid rgba(79,70,229,0.2);font-size:13px;color:#C0C0D0;display:flex;align-items:center;gap:10px"><span style="font-size:20px">⏱️</span><span id="time-saved-text"></span></div>
+    <div id="detected-summary"></div>
+    <div class="actions-bar"><button id="btn-copy-report" class="btn-export">📋 Copy Report</button><button id="btn-new-review" class="btn-export">🔄 New Review</button></div>
+    <div id="email-tabs" class="email-tabs"></div>
+    <div id="active-scorecard"></div>
+    <div class="footer-note">⚠️ This is an automated pre-screening tool. All content must still go through the formal Legal review process (1-3 business days). Contact your regional Legal POC for final approval.</div>
+  </div>
+</div>
+<script>
+const EXTRACTION_PROMPT = `You are an expert content extractor for OKX's compliance review workflow. Your job is to analyze documents (BRDs, GTM docs, email briefs, or any document) and extract ONLY the email and push notification content that needs compliance review.
+
+## WHAT TO EXTRACT:
+- Email subject lines, preheaders, titles, body copy, CTAs, disclaimers
+- Push notification titles and body text
+- Social media ad copy and captions (if present)
+- Homepage card copy (if present)
+- Any marketing copy destined for external audience
+
+## WHAT TO IGNORE:
+- Campaign background/summary/objectives sections (these are internal strategy)
+- Internal stakeholder names, ticket numbers, figma links
+- Campaign mechanics, payout schedules, T&Cs (these are pre-approved by legal)
+- User participation logic, targeting criteria, audience segments
+- Appendix data, performance tables, fee tables
+- Internal operational notes
+- Image specifications, template layout instructions (e.g. "680 x 450", "Logo built into the image")
+- OKP section names and template structure descriptions
+
+## IMPORTANT RULES:
+- Each distinct email variant should be a SEPARATE item (e.g. "Email 1: Launch VIP" and "Email 1: Launch non VIP" are two separate emails even if in the same doc)
+- Group push notifications that belong to the same campaign into a single "push_batch" item, but include every individual push title + body
+- Social media ad copy variants can be grouped into one "social_ad" item
+- Preserve the exact wording — do not paraphrase or clean up the copy
+- Include the email/push name/identifier if one exists in the doc
+- Note the target region/market if mentioned anywhere in the doc
+
+Return ONLY valid JSON (no markdown, no backticks) with this structure:
+{
+  "documentType": "email_brief" | "brd" | "gtm_doc" | "mixed",
+  "items": [
+    {
+      "id": "email_1",
+      "type": "email" | "push_batch" | "social_ad" | "homepage_card",
+      "name": "Human-readable name e.g. 'Launch Email - VIP Segment'",
+      "targetRegion": "EEA" | "US" | "Global" | etc or "Not specified",
+      "content": "The full extracted marketing copy for this item. For emails, structure as:\\nSubject: ...\\nPreheader: ...\\nTitle: ...\\nBody: ...\\nCTA: ...\\nDisclaimer: ...\\n\\nFor push batches, list each push individually."
+    }
+  ]
+}
+
+If no email/push/marketing content is found, return: { "documentType": "no_content", "items": [] }`;
+
+const COMPLIANCE_RULES = `You are OKX's Email Compliance Review Agent. You review email/push marketing copy for compliance with OKX's legal guidelines.
+
+## SCORING CALIBRATION:
+You should apply practical, real-world judgment when scoring. Not every mention of rewards, returns, or urgency is a violation. Standard promotional language commonly used in fintech and crypto marketing is acceptable. Reserve HIGH risk for clear, unambiguous violations that would definitely be flagged by Legal. Use MEDIUM for borderline cases that are worth noting but not blocking. Use LOW generously for categories with no real concern.
+
+Many items you might consider flagging are closer to precautionary notes than clear-cut violations. When in doubt, ask yourself: "Would Legal actually block this, or just note it?" If the answer is "just note it", use LOW or MEDIUM — not HIGH. Only flag HIGH for language that would genuinely require copy changes before Legal would approve.
+
+Specifically:
+- CTAs like "Join the campaign", "Get started", "Learn more", "Explore", "Deposit your assets", "Fund your account" are ACCEPTABLE and should NOT be flagged as trading inducement
+- Describing factual product mechanics (match rates, reward amounts, payout schedules) is ACCEPTABLE and is NOT investment advice
+- Stating verifiable facts about a promotion (e.g. "Earn 4% on deposits", "Up to 4,000 USDC in rewards") is ACCEPTABLE promotional language, NOT price appreciation
+- Time-bound campaign language ("Campaign ends March 20", "14-day campaign") is ACCEPTABLE and NOT FOMO unless combined with aggressive pressure tactics
+- "First come, first served" with a defined reward pool is ACCEPTABLE factual disclosure
+- Only flag disclaimers as HIGH if they are completely absent. If a disclaimer exists but could be improved, flag as MEDIUM at most
+- Informational market commentary ("here's what's happening in the market right now", "key events this week", "NFP data could influence markets") is ACCEPTABLE and is NOT urgency language or trading inducement. Only flag urgency if it explicitly pressures users to trade immediately (e.g. "buy now or you'll miss out")
+- The "Misleading Statements" category should NOT be used as a broad catch-all. Only flag statements that are genuinely false, materially misleading, or omit critical risk context. Do not flag standard promotional framing or simplified product descriptions
+
+## CORE LEGAL RULES:
+
+### 1. NO INVESTMENT ADVICE OR RECOMMENDATIONS
+- No market/price predictions or subjective commentary on asset performance
+- No "buy/sell/hold" advice on specific assets
+- No risk management advice, portfolio allocation, or suitability recommendations
+- Use indirect language: "a lot of traders like this strategy because they think XX" NOT "this is a great strategy because it does XX"
+- Never refer to a strategy as "best/worst" — use "a strategy"
+- Note: Describing product features and reward mechanics is NOT investment advice
+
+### 2. NO TRADING INDUCEMENT (IMPORTANT — keep this category strict)
+- This is the highest-priority compliance category. Language that could be perceived as explicitly prompting users to execute trades raises real regulatory risk. It is preferable to calibrate wording carefully rather than defend it after the fact.
+- No CTAs like "Trade Now", "Buy Now", "Sell Now" that directly push trading activity
+- No aggressive FOMO language: "Don't miss out", "Be the first to own", "Act now before it's too late"
+- No urgency-inducing language that pressures immediate trading action
+- Note: Campaign participation CTAs ("Join the campaign", "Opt in", "Get started") are acceptable — these encourage platform engagement, not specific trades
+- Note: Mentioning limited reward pools or campaign end dates is factual, not inducement
+- Note: Informational market updates ("here's what's happening this week") are acceptable — they inform, not pressure
+
+### 3. NO PRICE APPRECIATION ALLUSIONS
+- No expected price trajectory comments or predictions
+- No rocket ship emojis, upward trending charts, flying cash, money bags
+- No "Buy the dip", "You can't lose", "To the moon"
+- No blanket statements: "absolutely, definitely, certainly, the best, the only, secure, safe"
+- No analogies like "This is like purchasing Bitcoin 5 years ago"
+- Avoid marketing specific high APYs (especially 4+ digits)
+- Note: Stating factual reward rates (e.g. "4% match") is acceptable — this describes a promotion, not price appreciation
+
+### 4. NO COMPETITOR REFERENCES
+- No criticizing or badmouthing competitors
+- No "[OKX product] is better than [competitor product]"
+- No "[OKX product] is similar to [tradfi product]"
+- No "OKX cares more about compliance than [competitor]"
+- Comparative statements like "most trading pairs" are OK with substantiation
+
+### 5. NO FALSE OR MISLEADING STATEMENTS
+- Only flag statements that are genuinely false, materially misleading, or omit critical risk context
+- Do NOT use this as a catch-all for anything that sounds slightly imprecise — standard promotional framing and simplified product descriptions are acceptable
+- Never suggest crypto is risk-free
+- Do not misrepresent potential risk
+- Don't guarantee stability of any asset
+- Don't endorse any product/token
+
+### 6. NO GUARANTEES OR ENDORSEMENTS
+- Never suggest asset stability is guaranteed
+- Never put down another asset to promote one being discussed
+- Use "aims to be / attempts to / tries to be" language
+- Note: Stating factual campaign terms ("you will receive X USDC") describing a promotion mechanic is acceptable
+
+### 7. PROPER PRODUCT NAMING
+- Use only formalized product names (e.g., "X Layer" not "XL", "X1", "Layer")
+
+### 8. NO SECURITIES LANGUAGE
+- Never refer to tokens as "securities"
+- Use: token, crypto, digital asset, trade/traders, buy/buyer, sell/seller
+
+### 9. PROHIBITED CONTENT
+- No pornographic, sexual, violent/gore, racist, sexist, xenophobic, politically sensitive, religious content
+- No content referencing drugs or controlled substances
+
+### 10. NO REGULATOR/GOVERNMENT CRITICISM
+
+### 11. PARTNERSHIP LANGUAGE
+- Do not refer to "partnerships" or "partners" without a formal Partnership Agreement
+
+### 12. DISCLAIMERS REQUIRED
+- Every communication must include appropriate disclaimers
+- Flag as HIGH only if disclaimers are completely absent from the content
+- If a disclaimer exists but is incomplete, uses slightly different wording, or is missing from a template (boilerplate issue), flag as MEDIUM at most — this is a template fix, not a compliance violation
+- If disclaimers are present and reasonable, score as LOW even if they could theoretically be stronger
+
+### 13. AI-GENERATED CONTENT DISCLAIMER
+- If content is AI-generated/summarized, must include the required disclaimer
+
+## EMAIL TEMPLATE RULES:
+- Subject line: Hook within 33 characters
+- Preheader: Hook within 37 characters
+- Title H1: 2-6 words
+- CTA: 1-5 words (must NOT be trading inducement)
+- Body: Brief and to the point
+- Push title: <=30 characters
+- Push body: <=100 characters
+
+## OKX PRODUCT ROADMAP (for regional availability checks):
+| Product | Market(s) | Status |
+|---|---|---|
+| Smart Account | All | Live |
+| CeDeFi (ETH & ARB) | Global Offshore | Live |
+| USDC DeFi Rewards | EEA | Live |
+| Perpetuals (EEA) | EEA | March |
+| Card | All with exceptions | Live |
+| P2P | Global Offshore | Live |
+| Pay | All with exceptions | Live |
+| Earn | LATAM Offshore | Live |
+| Trading Bots | All with exceptions | Live |
+| Derivatives | All with exceptions | Live |
+| DEX | All | Live |
+| Wallet | All | Live |
+| Prediction Markets | All with exceptions | May |
+| Agentic AI Trading (Bots) | Global Offshore, US | March |
+| Event Contracts | Global Offshore | April |
+
+## YOUR TASK:
+Analyze the provided marketing content and return a JSON response (no markdown, no backticks):
+{
+  "overallRisk": "LOW" | "MEDIUM" | "HIGH",
+  "overallSummary": "2-3 sentence executive summary",
+  "scores": {
+    "investmentAdvice": { "risk": "LOW|MEDIUM|HIGH", "findings": ["..."], "suggestions": ["..."] },
+    "tradingInducement": { "risk": "LOW|MEDIUM|HIGH", "findings": ["..."], "suggestions": ["..."] },
+    "priceAppreciation": { "risk": "LOW|MEDIUM|HIGH", "findings": ["..."], "suggestions": ["..."] },
+    "competitorReferences": { "risk": "LOW|MEDIUM|HIGH", "findings": ["..."], "suggestions": ["..."] },
+    "misleadingStatements": { "risk": "LOW|MEDIUM|HIGH", "findings": ["..."], "suggestions": ["..."] },
+    "guaranteesEndorsements": { "risk": "LOW|MEDIUM|HIGH", "findings": ["..."], "suggestions": ["..."] },
+    "productNaming": { "risk": "LOW|MEDIUM|HIGH", "findings": ["..."], "suggestions": ["..."] },
+    "securitiesLanguage": { "risk": "LOW|MEDIUM|HIGH", "findings": ["..."], "suggestions": ["..."] },
+    "prohibitedContent": { "risk": "LOW|MEDIUM|HIGH", "findings": ["..."], "suggestions": ["..."] },
+    "regulatorMentions": { "risk": "LOW|MEDIUM|HIGH", "findings": ["..."], "suggestions": ["..."] },
+    "disclaimers": { "risk": "LOW|MEDIUM|HIGH", "findings": ["..."], "suggestions": ["..."] },
+    "regionalCompliance": { "risk": "LOW|MEDIUM|HIGH", "findings": ["..."], "suggestions": ["..."] },
+    "templateCompliance": { "risk": "LOW|MEDIUM|HIGH", "findings": ["..."], "suggestions": ["..."] }
+  },
+  "flaggedPhrases": [
+    { "phrase": "exact quote", "issue": "why problematic", "severity": "LOW|MEDIUM|HIGH", "suggestion": "recommended alternative" }
+  ]
+}
+Empty arrays [] for clean categories. Every category must be present. Return ONLY valid JSON.`;
+
+const CATEGORY_LABELS = {
+  investmentAdvice:"Investment Advice", tradingInducement:"Trading Inducement",
+  priceAppreciation:"Price Appreciation", competitorReferences:"Competitor References",
+  misleadingStatements:"Misleading Statements", guaranteesEndorsements:"Guarantees & Endorsements",
+  productNaming:"Product Naming", securitiesLanguage:"Securities Language",
+  prohibitedContent:"Prohibited Content", regulatorMentions:"Regulator Mentions",
+  disclaimers:"Disclaimers", regionalCompliance:"Regional Compliance",
+  templateCompliance:"Template Compliance",
+};
+const CATEGORY_ICONS = {
+  investmentAdvice:"\u{1F4B0}",tradingInducement:"\u{1F6AB}",priceAppreciation:"\u{1F4C8}",
+  competitorReferences:"\u{1F3E2}",misleadingStatements:"\u26A0\uFE0F",guaranteesEndorsements:"\u{1F512}",
+  productNaming:"\u{1F3F7}\uFE0F",securitiesLanguage:"\u{1F4DC}",prohibitedContent:"\u{1F6D1}",
+  regulatorMentions:"\u2696\uFE0F",disclaimers:"\u{1F4CB}",regionalCompliance:"\u{1F30D}",templateCompliance:"\u{1F4D0}",
+};
+const CATEGORY_TEXT_ICONS = {
+  investmentAdvice:"[$]",tradingInducement:"[!]",priceAppreciation:"[^]",
+  competitorReferences:"[C]",misleadingStatements:"[!]",guaranteesEndorsements:"[G]",
+  productNaming:"[N]",securitiesLanguage:"[S]",prohibitedContent:"[X]",
+  regulatorMentions:"[R]",disclaimers:"[D]",regionalCompliance:"[W]",templateCompliance:"[T]",
+};
+const RISK_FINDING_BG={HIGH:"#2D0A0A",MEDIUM:"#2D1F0A",LOW:"#0A2D1A"};
+const RISK_FINDING_BORDER={HIGH:"#DC2626",MEDIUM:"#D97706",LOW:"#16A34A"};
+const RISK_TEXT={HIGH:"#FCA5A5",MEDIUM:"#FCD34D",LOW:"#86EFAC"};
+const RISK_EMOJI={HIGH:"\u{1F534}",MEDIUM:"\u{1F7E1}",LOW:"\u{1F7E2}"};
+
+let extractedContent="",currentFileName="",extractedItems=[],scorecardResults=[],activeTabIndex=0,expandedCards={};
+let timerStart=null,timerInterval=null,totalElapsed=0;
+const $=id=>document.getElementById(id);
+function formatSize(b){if(b<1024)return b+" B";if(b<1048576)return(b/1024).toFixed(1)+" KB";return(b/1048576).toFixed(1)+" MB";}
+function wordCount(t){return t.trim().split(/\s+/).filter(Boolean).length;}
+
+function startTimer(){
+  timerStart=Date.now();totalElapsed=0;
+  $("timer-bar").style.display="block";$("timer-pill").className="timer-pill";
+  updateTimerDisplay();
+  timerInterval=setInterval(updateTimerDisplay,1000);
+}
+function stopTimer(){
+  if(timerInterval){clearInterval(timerInterval);timerInterval=null;}
+  if(timerStart)totalElapsed=Math.floor((Date.now()-timerStart)/1000);
+  $("timer-pill").className="timer-pill done";
+  updateTimerDisplay();
+}
+function resetTimer(){
+  if(timerInterval){clearInterval(timerInterval);timerInterval=null;}
+  timerStart=null;totalElapsed=0;$("timer-bar").style.display="none";
+}
+function updateTimerDisplay(){
+  const elapsed=timerStart?Math.floor((Date.now()-timerStart)/1000):totalElapsed;
+  const mins=Math.floor(elapsed/60);const secs=elapsed%60;
+  $("timer-text").textContent=mins+":"+(secs<10?"0":"")+secs;
+}
+function formatElapsed(secs){
+  if(secs<60)return secs+" second"+(secs!==1?"s":"");
+  const m=Math.floor(secs/60),s=secs%60;
+  return m+" minute"+(m!==1?"s":"")+(s>0?" "+s+" second"+(s!==1?"s":""):"");
+}
+
+async function extractText(file){
+  const ext=file.name.split(".").pop().toLowerCase();
+  if(ext==="txt"||ext==="md")return await file.text();
+  if(ext==="docx"){const ab=await file.arrayBuffer();const r=await mammoth.extractRawText({arrayBuffer:ab});return r.value;}
+  if(ext==="pdf"){
+    if(!window.pdfjsLib)throw new Error("PDF library not loaded. Please refresh and try again.");
+    const ab=await file.arrayBuffer();
+    const pdf=await pdfjsLib.getDocument({data:ab}).promise;
+    let fullText="";
+    for(let i=1;i<=pdf.numPages;i++){
+      const page=await pdf.getPage(i);
+      const content=await page.getTextContent();
+      const pageText=content.items.map(item=>item.str).join(" ");
+      if(pageText.trim())fullText+=pageText+"\n\n";
+    }
+    if(!fullText||fullText.trim().length<10)throw new Error("PDF appears to be image-only or contains no extractable text.");
+    return fullText;
+  }
+  throw new Error("Unsupported file type: ."+ext);
+}
+
+async function handleFile(file){
+  if(!file)return;
+  const ext=file.name.split(".").pop().toLowerCase();
+  if(!["docx","pdf","txt","md"].includes(ext)){showError("Unsupported file type. Please upload .docx, .pdf, or .txt");return;}
+  hideError();$("results").style.display="none";$("time-saved").style.display="none";$("picker-section").style.display="none";scorecardResults=[];extractedItems=[];currentFileName=file.name;
+  $("dropzone").style.display="none";$("file-loaded").style.display="flex";
+  $("file-icon-box").className="file-icon loading";$("file-icon-box").textContent="\u23F3";
+  $("file-name-text").textContent=file.name;$("file-meta-text").textContent=formatSize(file.size)+" \u00B7 Extracting text...";
+  $("preview-section").style.display="none";updateButton("extracting");
+  startTimer();
+  try{
+    extractedContent=await extractText(file);
+    if(!extractedContent||extractedContent.trim().length<20){showError("Could not extract meaningful text. The file may be image-only, corrupted, or the API may be rate-limited. Try again in a moment.");extractedContent="";updateButton("empty");stopTimer();return;}
+    $("file-icon-box").className="file-icon ready";$("file-icon-box").textContent="\u2705";
+    $("file-meta-text").textContent=formatSize(file.size)+" \u00B7 "+wordCount(extractedContent).toLocaleString()+" words extracted";
+    $("preview-section").style.display="block";
+    $("preview-box").textContent=extractedContent.slice(0,3000)+(extractedContent.length>3000?"\n\n... (truncated)":"");
+    updateButton("loading");
+    runExtraction();
+  }catch(err){showError("Error reading file: "+err.message);extractedContent="";updateButton("empty");stopTimer();}
+}
+
+function clearFile(){extractedContent="";currentFileName="";scorecardResults=[];extractedItems=[];$("dropzone").style.display="block";$("file-loaded").style.display="none";$("preview-section").style.display="none";$("results").style.display="none";$("time-saved").style.display="none";$("picker-section").style.display="none";$("file-input").value="";updateButton("empty");hideError();resetTimer();}
+function updateButton(s){const b=$("btn-analyze");if(s==="extracting"){b.disabled=true;b.className="btn-primary disabled";b.textContent="\u23F3 Reading document...";}else if(s==="loading"){b.disabled=true;b.className="btn-primary disabled";b.textContent="\u23F3 Analyzing...";}else if(s==="ready"){b.disabled=false;b.className="btn-primary active";b.textContent="Run Compliance Review";}else{b.disabled=true;b.className="btn-primary disabled";b.textContent="Upload a file to begin";}}
+function showError(m){$("error-box").style.display="block";$("error-box").textContent="\u26A0\uFE0F "+m;}
+function hideError(){$("error-box").style.display="none";}
+
+async function extractItemsFromDoc(){
+  const maxChars=40000;
+  const docText=extractedContent.length>maxChars?extractedContent.slice(0,maxChars)+"\n\n[Document truncated at "+maxChars+" characters. Only the content above will be analyzed.]":extractedContent;
+  const resp=await fetch("/.netlify/functions/ai-proxy",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:16000,system:EXTRACTION_PROMPT,messages:[{role:"user",content:"Extract the email/push/marketing content from this document:\n\n"+docText}]})});
+  const data=await resp.json();
+  if(data.error){throw new Error(data.error.message||"API error during extraction");}
+  const rawText=data.content?.map(b=>b.text||"").join("")||"";
+  if(!rawText||rawText.trim().length<5){throw new Error("Extraction returned empty response.");}
+
+  // Try to find and extract JSON from the response using multiple strategies
+  function tryParse(str){try{return JSON.parse(str);}catch(e){return null;}}
+
+  // Strategy 1: Find JSON object directly between first { and last }
+  const firstBrace=rawText.indexOf("{");
+  const lastBrace=rawText.lastIndexOf("}");
+  if(firstBrace>=0&&lastBrace>firstBrace){
+    const jsonCandidate=rawText.slice(firstBrace,lastBrace+1);
+    const parsed=tryParse(jsonCandidate);
+    if(parsed&&parsed.items)return parsed;
+  }
+
+  // Strategy 2: Try to salvage truncated JSON (token limit hit)
+  if(firstBrace>=0){
+    let partial=rawText.slice(firstBrace);
+    // Find the last complete item object
+    const lastItemEnd=partial.lastIndexOf("}");
+    if(lastItemEnd>0){
+      let salvaged=partial.slice(0,lastItemEnd+1);
+      // Try closing brackets
+      const openBrackets=(salvaged.match(/\[/g)||[]).length;
+      const closeBrackets=(salvaged.match(/\]/g)||[]).length;
+      for(let i=0;i<openBrackets-closeBrackets;i++)salvaged+="]";
+      const openBraces=(salvaged.match(/\{/g)||[]).length;
+      const closeBraces=(salvaged.match(/\}/g)||[]).length;
+      for(let i=0;i<openBraces-closeBraces;i++)salvaged+="}";
+      const parsed=tryParse(salvaged);
+      if(parsed&&parsed.items)return parsed;
+    }
+  }
+
+  // Strategy 3: More aggressive salvage — find last complete item by searching for "},\n" pattern
+  if(firstBrace>=0){
+    let partial=rawText.slice(firstBrace);
+    // Try progressively removing content from the end to find a parseable subset
+    const itemPattern=/\}\s*,?\s*\{/g;
+    let lastGoodPos=-1;
+    let match;
+    while((match=itemPattern.exec(partial))!==null){
+      // Try parsing up to this item boundary
+      let candidate=partial.slice(0,match.index+1);
+      // Close the structure
+      if(!candidate.includes("]"))candidate+="]";
+      if((candidate.match(/\{/g)||[]).length>(candidate.match(/\}/g)||[]).length)candidate+="}";
+      const parsed=tryParse(candidate);
+      if(parsed&&parsed.items&&parsed.items.length>0)lastGoodPos=match.index+1;
+    }
+    if(lastGoodPos>0){
+      let candidate=partial.slice(0,lastGoodPos)+"]";
+      const ob=(candidate.match(/\{/g)||[]).length;
+      const cb=(candidate.match(/\}/g)||[]).length;
+      for(let i=0;i<ob-cb;i++)candidate+="}";
+      const parsed=tryParse(candidate);
+      if(parsed&&parsed.items)return parsed;
+    }
+  }
+
+  throw new Error("Failed to parse extraction results. Try uploading again or use a smaller document.");
+}
+
+async function scoreItem(item){
+  const resp=await fetch("/.netlify/functions/ai-proxy",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:8000,system:COMPLIANCE_RULES,messages:[{role:"user",content:"Review this "+item.type.replace("_"," ")+" marketing content for OKX compliance.\n\nContent name: "+item.name+"\nTarget region: "+item.targetRegion+"\n\n---\n"+item.content}]})});
+  const data=await resp.json();
+  if(data.error){throw new Error(data.error.message||"API error during scoring");}
+  const text=data.content?.map(b=>b.text||"").join("")||"";
+  try{return JSON.parse(text.replace(/```json|```/g,"").trim());}
+  catch(e){console.error("Score parse error for "+item.name+". Raw:",text.slice(0,500));throw new Error("Failed to parse compliance score for '"+item.name+"'. Try again.");}
+}
+
+async function runExtraction(){
+  if(!extractedContent.trim())return;
+  hideError();$("results").style.display="none";$("time-saved").style.display="none";$("picker-section").style.display="none";$("loading-bar").style.display="block";updateButton("loading");
+  if(!timerStart)startTimer();
+  try{
+    $("loading-text").textContent="Identifying email & push content...";
+    const extraction=await extractItemsFromDoc();
+    if(!extraction.items||extraction.items.length===0){showError("No email or push content detected in this document. Make sure it contains marketing copy.");$("loading-bar").style.display="none";updateButton("ready");stopTimer();return;}
+    extractedItems=extraction.items;scorecardResults=[];
+    $("loading-bar").style.display="none";
+
+    // If 3 or fewer items, auto-select all and score immediately
+    if(extractedItems.length<=3){
+      await scoreSelectedItems(extractedItems.map((_,i)=>i));
+      return;
+    }
+
+    // Otherwise show picker
+    renderPicker();
+  }catch(err){showError("Extraction failed: "+err.message+". Please try again.");stopTimer();$("loading-bar").style.display="none";updateButton("ready");}
+}
+
+function renderPicker(){
+  const section=$("picker-section");
+  let html='<div class="picker">';
+  html+='<div class="picker-header"><div><div class="picker-title">📋 Found '+extractedItems.length+' content items</div><div class="picker-count">Select items to review, or use search to filter</div></div></div>';
+  html+='<div class="picker-controls"><input type="text" id="picker-search" class="picker-search" placeholder="Search by name..." oninput="filterPicker()"><button class="picker-btn" onclick="toggleAllPicker(true)">Select All</button><button class="picker-btn" onclick="toggleAllPicker(false)">Deselect All</button></div>';
+  html+='<div class="picker-list" id="picker-list">';
+  extractedItems.forEach((item,i)=>{
+    const tc=item.type==="email"?"email":item.type==="push_batch"?"push":item.type==="social_ad"?"social":"homepage";
+    html+='<label class="picker-item" data-name="'+esc(item.name).toLowerCase()+'" data-idx="'+i+'"><input type="checkbox" checked data-idx="'+i+'"><div class="picker-item-info"><span class="detected-badge '+tc+'">'+item.type.replace(/_/g," ")+'</span><span class="picker-item-name">'+esc(item.name)+'</span></div></label>';
+  });
+  html+='</div>';
+  html+='<button class="btn-score" id="btn-score" onclick="scoreFromPicker()">Score Selected Items ('+extractedItems.length+')</button>';
+  html+='</div>';
+  section.innerHTML=html;
+  section.style.display="block";
+  section.scrollIntoView({behavior:"smooth",block:"start"});
+  updateButton("ready");
+  updateScoreButtonCount();
+}
+
+function filterPicker(){
+  const q=$("picker-search").value.toLowerCase();
+  document.querySelectorAll(".picker-item").forEach(el=>{
+    if(q===""||el.dataset.name.includes(q)){el.classList.remove("hidden");}
+    else{el.classList.add("hidden");}
+  });
+}
+
+function toggleAllPicker(state){
+  const q=$("picker-search").value.toLowerCase();
+  document.querySelectorAll('.picker-item').forEach(el=>{
+    if(q===""||el.dataset.name.includes(q)){
+      el.querySelector('input[type="checkbox"]').checked=state;
+    }
+  });
+  updateScoreButtonCount();
+}
+
+function updateScoreButtonCount(){
+  const count=document.querySelectorAll('#picker-list input[type="checkbox"]:checked').length;
+  const btn=$("btn-score");
+  btn.textContent="Score Selected Items ("+count+")";
+  btn.disabled=count===0;
+}
+
+// Attach change listener for checkboxes via delegation
+document.addEventListener("change",function(e){
+  if(e.target.matches('#picker-list input[type="checkbox"]'))updateScoreButtonCount();
+});
+
+async function scoreFromPicker(){
+  const checked=Array.from(document.querySelectorAll('#picker-list input[type="checkbox"]:checked')).map(cb=>parseInt(cb.dataset.idx));
+  if(checked.length===0)return;
+  $("picker-section").style.display="none";
+  await scoreSelectedItems(checked);
+}
+
+async function scoreSelectedItems(indices){
+  hideError();$("results").style.display="none";$("time-saved").style.display="none";$("loading-bar").style.display="block";updateButton("loading");
+  const itemsToScore=indices.map(i=>extractedItems[i]);
+  scorecardResults=[];
+  // Store which items we're actually scoring for display
+  const scoredItems=[];
+  try{
+    for(let i=0;i<itemsToScore.length;i++){
+      $("loading-text").textContent="Scoring "+(i+1)+" of "+itemsToScore.length+": "+itemsToScore[i].name+"...";
+      scorecardResults.push(await scoreItem(itemsToScore[i]));
+      scoredItems.push(itemsToScore[i]);
+    }
+    stopTimer();
+    // Replace extractedItems with only the scored ones for display
+    extractedItems=scoredItems;
+    activeTabIndex=0;expandedCards={};
+    if(scorecardResults[0]?.scores)Object.entries(scorecardResults[0].scores).forEach(([k,v])=>{if(v.risk==="HIGH")expandedCards[k]=true;});
+    $("time-saved-text").innerHTML="Full review completed in <strong>"+formatElapsed(totalElapsed)+"</strong> — "+extractedItems.length+" content item"+(extractedItems.length>1?"s":"")+" scanned across 13 compliance categories";
+    $("time-saved").style.display="flex";
+    renderResults();
+  }catch(err){showError("Analysis failed: "+err.message+". Please try again.");stopTimer();}
+  $("loading-bar").style.display="none";updateButton("ready");
+}
+
+// Keep runAnalysis as a fallback for the manual button
+async function runAnalysis(){
+  if(!extractedContent.trim())return;
+  await runExtraction();
+}
+
+function badge(risk){return'<span class="badge badge-'+risk.toLowerCase()+'">'+risk+"</span>";}
+function esc(s){if(!s)return"";return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
+
+function renderResults(){
+  if(!scorecardResults.length)return;
+  let sh='<div class="detected-title">\u{1F4CB} Detected '+extractedItems.length+" content item"+(extractedItems.length>1?"s":"")+"</div>";
+  extractedItems.forEach((item,i)=>{
+    const risk=scorecardResults[i]?.overallRisk||"LOW";
+    const tc=item.type==="email"?"email":item.type==="push_batch"?"push":item.type==="social_ad"?"social":"homepage";
+    sh+='<div class="detected-item"><span class="detected-badge '+tc+'">'+item.type.replace(/_/g," ")+"</span>"+'<span style="color:#D0D0E0;font-weight:500">'+esc(item.name)+'</span><span style="margin-left:auto">'+badge(risk)+"</span></div>";
+  });
+  $("detected-summary").innerHTML='<div class="detected-summary">'+sh+"</div>";
+  if(extractedItems.length>1){
+    $("email-tabs").innerHTML=extractedItems.map((item,i)=>{
+      const risk=scorecardResults[i]?.overallRisk||"LOW";
+      return'<button class="email-tab'+(i===activeTabIndex?" active":"")+'" onclick="switchTab('+i+')">'+esc(item.name)+'<span class="tab-risk tab-risk-'+risk.toLowerCase()+'"></span></button>';
+    }).join("");$("email-tabs").style.display="flex";
+  }else{$("email-tabs").style.display="none";}
+  renderScorecard(scorecardResults[activeTabIndex]);
+  $("results").style.display="block";$("results").scrollIntoView({behavior:"smooth",block:"start"});
+}
+
+function switchTab(i){activeTabIndex=i;expandedCards={};if(scorecardResults[i]?.scores)Object.entries(scorecardResults[i].scores).forEach(([k,v])=>{if(v.risk==="HIGH")expandedCards[k]=true;});renderResults();}
+
+function renderScorecard(r){
+  if(!r)return;let h="";
+  const rc="risk-"+r.overallRisk.toLowerCase();
+  // Determine human review status
+  const hasHighCategory=Object.values(r.scores).some(s=>s.risk==="HIGH");
+  const hasHighPhrase=r.flaggedPhrases&&r.flaggedPhrases.some(p=>p.severity==="HIGH");
+  const hasMediumCategory=Object.values(r.scores).some(s=>s.risk==="MEDIUM");
+  let reviewStatus,reviewColor,reviewIcon;
+  if(r.overallRisk==="HIGH"||hasHighCategory||hasHighPhrase){
+    reviewStatus="Human review required";reviewColor="#FCA5A5";reviewIcon="\u{1F6D1}";
+  }else if(r.overallRisk==="MEDIUM"||hasMediumCategory){
+    reviewStatus="Recommended: quick review before sending";reviewColor="#FCD34D";reviewIcon="\u{1F7E1}";
+  }else{
+    reviewStatus="OK to send";reviewColor="#86EFAC";reviewIcon="\u2705";
+  }
+  h+='<div class="overall-score '+rc+'"><div class="overall-header"><span class="overall-emoji">'+RISK_EMOJI[r.overallRisk]+'</span><div><div class="overall-label">Overall Compliance Risk</div><div class="overall-risk" style="color:'+RISK_TEXT[r.overallRisk]+'">'+r.overallRisk+' RISK</div></div><div style="margin-left:auto;text-align:right"><div class="overall-label">Review Status</div><div style="font-size:15px;font-weight:700;color:'+reviewColor+'">'+reviewIcon+' '+reviewStatus+'</div></div></div><div class="overall-summary">'+esc(r.overallSummary)+"</div></div>";
+  const counts={HIGH:0,MEDIUM:0,LOW:0};const total=Object.keys(r.scores).length;Object.values(r.scores).forEach(s=>counts[s.risk]++);
+  h+='<div class="distribution">'+["HIGH","MEDIUM","LOW"].map(rk=>'<div class="dist-item">'+badge(rk)+'<span class="dist-count">'+counts[rk]+" / "+total+"</span></div>").join("")+"</div>";
+  const sorted=["HIGH","MEDIUM","LOW"].flatMap(rk=>Object.entries(r.scores).filter(([,v])=>v.risk===rk));
+  h+=sorted.map(([key,val])=>renderCard(key,val)).join("");
+  if(r.flaggedPhrases&&r.flaggedPhrases.length>0){
+    h+='<div style="margin-top:24px"><div style="font-size:16px;font-weight:700;margin-bottom:14px">\u{1F6A9} Flagged Phrases</div><div style="background:#15151F;border-radius:10px;border:1px solid #2A2A3A;overflow:hidden"><div style="overflow-x:auto"><table class="flagged-table"><thead><tr><th>Phrase</th><th>Issue</th><th>Severity</th><th>Suggestion</th></tr></thead><tbody>'+r.flaggedPhrases.map(p=>"<tr>"+'<td class="flagged-phrase">"'+esc(p.phrase)+'"</td><td class="flagged-issue">'+esc(p.issue)+"</td><td>"+badge(p.severity)+'</td><td class="flagged-suggestion">'+esc(p.suggestion)+"</td></tr>").join("")+"</tbody></table></div></div></div>";
+  }
+  $("active-scorecard").innerHTML=h;
+}
+
+function renderCard(key,val){
+  const isOpen=!!expandedCards[key];const hF=val.findings&&val.findings.length>0;const hS=val.suggestions&&val.suggestions.length>0;
+  const cnt=hF?'<span class="card-count" style="background:'+RISK_FINDING_BG[val.risk]+";color:"+RISK_TEXT[val.risk]+'">'+val.findings.length+" "+(val.findings.length===1?"finding":"findings")+"</span>":"";
+  let body="";
+  if(isOpen){
+    if(hF){body+='<div class="section-label">Findings</div>';body+=val.findings.map(f=>'<div class="finding" style="background:'+RISK_FINDING_BG[val.risk]+";border-color:"+RISK_FINDING_BORDER[val.risk]+'">'+esc(f)+"</div>").join("");}
+    else{body+='<div class="no-issues">No issues detected in this category.</div>';}
+    if(hS){body+='<div class="section-label">Suggestions</div>';body+=val.suggestions.map(s=>'<div class="suggestion">\u{1F4A1} '+esc(s)+"</div>").join("");}
+  }
+  return'<div class="category-card '+(isOpen?"expanded":"")+'" id="card-'+key+'"><button class="card-header" onclick="toggleCard(\''+key+'\')"><div class="card-left"><span class="card-icon">'+CATEGORY_ICONS[key]+'</span><span class="card-name">'+(CATEGORY_LABELS[key]||key)+"</span>"+cnt+'</div><div class="card-right">'+badge(val.risk)+'<span class="card-arrow '+(isOpen?"open":"")+'">&#9660;</span></div></button>'+(isOpen?'<div class="card-body">'+body+"</div>":"")+"</div>";
+}
+
+function toggleCard(key){expandedCards[key]=!expandedCards[key];renderScorecard(scorecardResults[activeTabIndex]);}
+
+// Export
+
+function copyReport(){
+  if(!scorecardResults.length)return;
+  try{
+    const date=new Date().toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"});
+    const timeStr=totalElapsed?formatElapsed(totalElapsed):"N/A";
+    const divider="════════════════════════════════════════";
+    const thinDiv="────────────────────────────────────────";
+    let txt="";
+
+    txt+="OKX COMPLIANCE REVIEW REPORT\n";
+    txt+="File: "+currentFileName+"  |  Date: "+date+"\n";
+    txt+="Review completed in "+timeStr+" — "+extractedItems.length+" content item"+(extractedItems.length>1?"s":"")+" scanned across 13 compliance categories\n";
+    txt+=divider+"\n\n";
+
+    for(let idx=0;idx<scorecardResults.length;idx++){
+      const r=scorecardResults[idx],item=extractedItems[idx];
+      if(!r||!item)continue;
+
+      txt+=(idx+1)+". "+item.name.toUpperCase()+" ("+item.type.replace(/_/g," ")+")\n";
+      txt+="Region: "+(item.targetRegion||"Not specified")+"\n";
+      txt+="Overall Risk: "+r.overallRisk+"\n";
+      const hasHighCat=Object.values(r.scores).some(s=>s.risk==="HIGH");
+      const hasHighPhr=r.flaggedPhrases&&r.flaggedPhrases.some(p=>p.severity==="HIGH");
+      const hasMedCat=Object.values(r.scores).some(s=>s.risk==="MEDIUM");
+      if(r.overallRisk==="HIGH"||hasHighCat||hasHighPhr){txt+="Review Status: HUMAN REVIEW REQUIRED\n";}
+      else if(r.overallRisk==="MEDIUM"||hasMedCat){txt+="Review Status: Recommended — quick review before sending\n";}
+      else{txt+="Review Status: OK TO SEND\n";}
+      txt+=(r.overallSummary||"")+"\n\n";
+
+      const counts={HIGH:0,MEDIUM:0,LOW:0};
+      Object.values(r.scores).forEach(s=>counts[s.risk]++);
+      txt+="Risk Distribution: "+counts.HIGH+" HIGH | "+counts.MEDIUM+" MEDIUM | "+counts.LOW+" LOW\n";
+      txt+=thinDiv+"\n\n";
+
+      const sorted=["HIGH","MEDIUM","LOW"].flatMap(rk=>Object.entries(r.scores).filter(([,v])=>v.risk===rk));
+      sorted.forEach(([key,val])=>{
+        const hF=val.findings&&val.findings.length>0;
+        const hS=val.suggestions&&val.suggestions.length>0;
+        if(!hF&&!hS&&val.risk==="LOW")return;
+
+        txt+="["+val.risk+"] "+(CATEGORY_LABELS[key]||key)+"\n";
+        if(hF){txt+="  Findings:\n";val.findings.forEach(f=>{txt+="  • "+f+"\n";});}
+        if(hS){txt+="  Suggestions:\n";val.suggestions.forEach(s=>{txt+="  → "+s+"\n";});}
+        txt+="\n";
+      });
+
+      if(r.flaggedPhrases&&r.flaggedPhrases.length>0){
+        txt+="FLAGGED PHRASES:\n";
+        r.flaggedPhrases.forEach(p=>{
+          txt+="  \""+p.phrase+"\" ["+p.severity+"]\n";
+          txt+="  Issue: "+p.issue+"\n";
+          txt+="  Fix: "+p.suggestion+"\n\n";
+        });
+      }
+
+      if(idx<scorecardResults.length-1)txt+=divider+"\n\n";
+    }
+
+    txt+="\n"+thinDiv+"\n";
+    txt+="This is an automated pre-screening. All content must go through formal Legal review (1-3 business days).\nContact your regional Legal POC for final approval.\n";
+
+    navigator.clipboard.writeText(txt).then(()=>{
+      const btn=$("btn-copy-report");
+      const orig=btn.innerHTML;
+      btn.innerHTML="✅ Copied!";
+      btn.style.borderColor="#16A34A";btn.style.color="#86EFAC";
+      setTimeout(()=>{btn.innerHTML=orig;btn.style.borderColor="";btn.style.color="";},2000);
+    }).catch(()=>{
+      // Fallback: select from a textarea
+      const ta=document.createElement("textarea");
+      ta.value=txt;ta.style.position="fixed";ta.style.left="-9999px";
+      document.body.appendChild(ta);ta.select();
+      try{document.execCommand("copy");
+        const btn=$("btn-copy-report");
+        const orig=btn.innerHTML;
+        btn.innerHTML="✅ Copied!";
+        btn.style.borderColor="#16A34A";btn.style.color="#86EFAC";
+        setTimeout(()=>{btn.innerHTML=orig;btn.style.borderColor="";btn.style.color="";},2000);
+      }catch(e){showError("Copy failed. Please select and copy the report manually.");}
+      document.body.removeChild(ta);
+    });
+  }catch(err){console.error("Copy error:",err);showError("Copy failed: "+err.message);}
+}
+
+$("dropzone").addEventListener("click",()=>$("file-input").click());
+$("dropzone").addEventListener("dragover",e=>{e.preventDefault();$("dropzone").classList.add("dragging");});
+$("dropzone").addEventListener("dragleave",()=>$("dropzone").classList.remove("dragging"));
+$("dropzone").addEventListener("drop",e=>{e.preventDefault();$("dropzone").classList.remove("dragging");handleFile(e.dataTransfer?.files?.[0]);});
+$("file-input").addEventListener("change",e=>handleFile(e.target.files?.[0]));
+$("btn-remove").addEventListener("click",clearFile);
+$("btn-analyze").addEventListener("click",runAnalysis);
+$("btn-copy-report").addEventListener("click",copyReport);
+$("btn-new-review").addEventListener("click",clearFile);
+</script>
+</body>
+</html>
