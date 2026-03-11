@@ -224,13 +224,31 @@ You should apply practical, real-world judgment when scoring. Not every mention 
 
 Many items you might consider flagging are closer to precautionary notes than clear-cut violations. When in doubt, ask yourself: "Would Legal actually block this, or just note it?" If the answer is "just note it", use LOW or MEDIUM — not HIGH. Only flag HIGH for language that would genuinely require copy changes before Legal would approve.
 
+CRITICAL — CONTEXT-FIRST SCORING:
+Before scoring any individual word or phrase, you MUST consider the overall context and purpose of the email. Words like "trade", "trading", "buy", "sell" are standard vocabulary for a crypto exchange platform — they describe what our product does. These words are NOT inherently violations. Only flag them when they are used as direct commands pressuring the user to take immediate action.
+
+Examples of ACCEPTABLE usage (do NOT flag):
+- "You can trade a wide variety of digital assets on OKX" (descriptive)
+- "OKX offers advanced tools for crypto trading" (product description)
+- "Learn how to place your first trade" (educational)
+- "Spot trading insights" (feature label)
+- "Make informed decisions" (empowering, not commanding)
+- "Here's what's happening in the market this week" (informational)
+- "Key events that could influence markets" (educational context)
+- "Prepare for Friday's NFP report" (informational)
+
+Examples of PROBLEMATIC usage (DO flag):
+- "Trade now!" (direct command with urgency)
+- "Buy BTC before the price moons!" (command + price prediction + FOMO)
+- "Don't miss this opportunity — trade today" (FOMO + command)
+- "The market is moving — trade now!" (urgency + command)
+
 Specifically:
 - CTAs like "Join the campaign", "Get started", "Learn more", "Explore", "Deposit your assets", "Fund your account" are ACCEPTABLE and should NOT be flagged as trading inducement
 - Describing factual product mechanics (match rates, reward amounts, payout schedules) is ACCEPTABLE and is NOT investment advice
 - Stating verifiable facts about a promotion (e.g. "Earn 4% on deposits", "Up to 4,000 USDC in rewards") is ACCEPTABLE promotional language, NOT price appreciation
 - Time-bound campaign language ("Campaign ends March 20", "14-day campaign") is ACCEPTABLE and NOT FOMO unless combined with aggressive pressure tactics
 - "First come, first served" with a defined reward pool is ACCEPTABLE factual disclosure
-- Only flag disclaimers as HIGH if they are completely absent. If a disclaimer exists but could be improved, flag as MEDIUM at most
 - Informational market commentary ("here's what's happening in the market right now", "key events this week", "NFP data could influence markets") is ACCEPTABLE and is NOT urgency language or trading inducement. Only flag urgency if it explicitly pressures users to trade immediately (e.g. "buy now or you'll miss out")
 - The "Misleading Statements" category should NOT be used as a broad catch-all. Only flag statements that are genuinely false, materially misleading, or omit critical risk context. Do not flag standard promotional framing or simplified product descriptions
 
@@ -252,6 +270,7 @@ Specifically:
 - Note: Campaign participation CTAs ("Join the campaign", "Opt in", "Get started") are acceptable — these encourage platform engagement, not specific trades
 - Note: Mentioning limited reward pools or campaign end dates is factual, not inducement
 - Note: Informational market updates ("here's what's happening this week") are acceptable — they inform, not pressure
+- IMPORTANT: The word "trade" used descriptively (e.g. "trade crypto on OKX", "trading tools", "spot trading insights") is NOT inducement. Only flag "trade" when it is used as a direct imperative command pressuring immediate action.
 
 ### 3. NO PRICE APPRECIATION ALLUSIONS
 - No expected price trajectory comments or predictions
@@ -299,13 +318,7 @@ Specifically:
 ### 11. PARTNERSHIP LANGUAGE
 - Do not refer to "partnerships" or "partners" without a formal Partnership Agreement
 
-### 12. DISCLAIMERS REQUIRED
-- Every communication must include appropriate disclaimers
-- Flag as HIGH only if disclaimers are completely absent from the content
-- If a disclaimer exists but is incomplete, uses slightly different wording, or is missing from a template (boilerplate issue), flag as MEDIUM at most — this is a template fix, not a compliance violation
-- If disclaimers are present and reasonable, score as LOW even if they could theoretically be stronger
-
-### 13. AI-GENERATED CONTENT DISCLAIMER
+### 12. AI-GENERATED CONTENT DISCLAIMER
 - If content is AI-generated/summarized, must include the required disclaimer
 
 ## EMAIL TEMPLATE RULES:
@@ -352,7 +365,6 @@ Analyze the provided marketing content and return a JSON response (no markdown, 
     "securitiesLanguage": { "risk": "LOW|MEDIUM|HIGH", "findings": ["..."], "suggestions": ["..."] },
     "prohibitedContent": { "risk": "LOW|MEDIUM|HIGH", "findings": ["..."], "suggestions": ["..."] },
     "regulatorMentions": { "risk": "LOW|MEDIUM|HIGH", "findings": ["..."], "suggestions": ["..."] },
-    "disclaimers": { "risk": "LOW|MEDIUM|HIGH", "findings": ["..."], "suggestions": ["..."] },
     "regionalCompliance": { "risk": "LOW|MEDIUM|HIGH", "findings": ["..."], "suggestions": ["..."] },
     "templateCompliance": { "risk": "LOW|MEDIUM|HIGH", "findings": ["..."], "suggestions": ["..."] }
   },
@@ -368,20 +380,20 @@ const CATEGORY_LABELS = {
   misleadingStatements:"Misleading Statements", guaranteesEndorsements:"Guarantees & Endorsements",
   productNaming:"Product Naming", securitiesLanguage:"Securities Language",
   prohibitedContent:"Prohibited Content", regulatorMentions:"Regulator Mentions",
-  disclaimers:"Disclaimers", regionalCompliance:"Regional Compliance",
+  regionalCompliance:"Regional Compliance",
   templateCompliance:"Template Compliance",
 };
 const CATEGORY_ICONS = {
   investmentAdvice:"\u{1F4B0}",tradingInducement:"\u{1F6AB}",priceAppreciation:"\u{1F4C8}",
   competitorReferences:"\u{1F3E2}",misleadingStatements:"\u26A0\uFE0F",guaranteesEndorsements:"\u{1F512}",
   productNaming:"\u{1F3F7}\uFE0F",securitiesLanguage:"\u{1F4DC}",prohibitedContent:"\u{1F6D1}",
-  regulatorMentions:"\u2696\uFE0F",disclaimers:"\u{1F4CB}",regionalCompliance:"\u{1F30D}",templateCompliance:"\u{1F4D0}",
+  regulatorMentions:"\u2696\uFE0F",regionalCompliance:"\u{1F30D}",templateCompliance:"\u{1F4D0}",
 };
 const CATEGORY_TEXT_ICONS = {
   investmentAdvice:"[$]",tradingInducement:"[!]",priceAppreciation:"[^]",
   competitorReferences:"[C]",misleadingStatements:"[!]",guaranteesEndorsements:"[G]",
   productNaming:"[N]",securitiesLanguage:"[S]",prohibitedContent:"[X]",
-  regulatorMentions:"[R]",disclaimers:"[D]",regionalCompliance:"[W]",templateCompliance:"[T]",
+  regulatorMentions:"[R]",regionalCompliance:"[W]",templateCompliance:"[T]",
 };
 const RISK_FINDING_BG={HIGH:"#2D0A0A",MEDIUM:"#2D1F0A",LOW:"#0A2D1A"};
 const RISK_FINDING_BORDER={HIGH:"#DC2626",MEDIUM:"#D97706",LOW:"#16A34A"};
@@ -643,7 +655,7 @@ async function scoreSelectedItems(indices){
     extractedItems=scoredItems;
     activeTabIndex=0;expandedCards={};
     if(scorecardResults[0]?.scores)Object.entries(scorecardResults[0].scores).forEach(([k,v])=>{if(v.risk==="HIGH")expandedCards[k]=true;});
-    $("time-saved-text").innerHTML="Full review completed in <strong>"+formatElapsed(totalElapsed)+"</strong> — "+extractedItems.length+" content item"+(extractedItems.length>1?"s":"")+" scanned across 13 compliance categories";
+    $("time-saved-text").innerHTML="Full review completed in <strong>"+formatElapsed(totalElapsed)+"</strong> — "+extractedItems.length+" content item"+(extractedItems.length>1?"s":"")+" scanned across 12 compliance categories";
     $("time-saved").style.display="flex";
     renderResults();
   }catch(err){showError("Analysis failed: "+err.message+". Please try again.");stopTimer();}
@@ -733,7 +745,7 @@ function copyReport(){
 
     txt+="OKX COMPLIANCE REVIEW REPORT\n";
     txt+="File: "+currentFileName+"  |  Date: "+date+"\n";
-    txt+="Review completed in "+timeStr+" — "+extractedItems.length+" content item"+(extractedItems.length>1?"s":"")+" scanned across 13 compliance categories\n";
+    txt+="Review completed in "+timeStr+" — "+extractedItems.length+" content item"+(extractedItems.length>1?"s":"")+" scanned across 12 compliance categories\n";
     txt+=divider+"\n\n";
 
     for(let idx=0;idx<scorecardResults.length;idx++){
