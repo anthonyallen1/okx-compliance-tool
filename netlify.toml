@@ -4,3 +4,5 @@
 
 [functions]
   node_bundler = "esbuild"
+[functions."ai-proxy"]
+  timeout = 60
