@@ -510,7 +510,7 @@ function hideError(){$("error-box").style.display="none";}
 async function extractItemsFromDoc(){
   const maxChars=40000;
   const docText=extractedContent.length>maxChars?extractedContent.slice(0,maxChars)+"\n\n[Document truncated at "+maxChars+" characters. Only the content above will be analyzed.]":extractedContent;
-  const resp=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:16000,system:EXTRACTION_PROMPT,messages:[{role:"user",content:"Extract the email/push/marketing content from this document:\n\n"+docText}]})});
+  const resp=await fetch("/.netlify/functions/ai-proxy",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:16000,system:EXTRACTION_PROMPT,messages:[{role:"user",content:"Extract the email/push/marketing content from this document:\n\n"+docText}]})});
   const data=await resp.json();
   if(data.error){throw new Error(data.error.message||"API error during extraction");}
   const rawText=data.content?.map(b=>b.text||"").join("")||"";
@@ -577,7 +577,7 @@ async function extractItemsFromDoc(){
 }
 
 async function scoreItem(item){
-  const resp=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:8000,system:COMPLIANCE_RULES,messages:[{role:"user",content:"Review this "+item.type.replace("_"," ")+" marketing content for OKX compliance.\n\nContent name: "+item.name+"\nTarget region: "+item.targetRegion+"\n\n---\n"+item.content}]})});
+  const resp=await fetch("/.netlify/functions/ai-proxy",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:8000,system:COMPLIANCE_RULES,messages:[{role:"user",content:"Review this "+item.type.replace("_"," ")+" marketing content for OKX compliance.\n\nContent name: "+item.name+"\nTarget region: "+item.targetRegion+"\n\n---\n"+item.content}]})});
   const data=await resp.json();
   if(data.error){throw new Error(data.error.message||"API error during scoring");}
   const text=data.content?.map(b=>b.text||"").join("")||"";
