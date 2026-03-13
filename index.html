@@ -513,7 +513,7 @@ function hideError(){$("error-box").style.display="none";}
 async function extractItemsFromDoc(){
   const maxChars=40000;
   const docText=extractedContent.length>maxChars?extractedContent.slice(0,maxChars)+"\n\n[Document truncated at "+maxChars+" characters. Only the content above will be analyzed.]":extractedContent;
-  const resp=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:16000,system:EXTRACTION_PROMPT,messages:[{role:"user",content:"Extract the email/push/marketing content from this document:\n\n"+docText}]})});
+  const resp=await fetch("/.netlify/functions/ai-proxy",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:16000,system:EXTRACTION_PROMPT,messages:[{role:"user",content:"Extract the email/push/marketing content from this document:\n\n"+docText}]})});
   const data=await resp.json();
   if(data.error){throw new Error(data.error.message||"API error during extraction");}
   const rawText=data.content?.map(b=>b.text||"").join("")||"";
@@ -582,12 +582,24 @@ async function extractItemsFromDoc(){
 async function scoreItem(item){
   const userContext=$("context-input").value.trim();
   const contextBlock=userContext?"\n\nAdditional context from the reviewer:\n"+userContext:"";
-  const resp=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:8000,system:COMPLIANCE_RULES,messages:[{role:"user",content:"Review this "+item.type.replace("_"," ")+" marketing content for OKX compliance.\n\nContent name: "+item.name+"\nTarget region: "+item.targetRegion+contextBlock+"\n\n---\n"+item.content}]})});
+  const resp=await fetch("/.netlify/functions/ai-proxy",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:8000,system:COMPLIANCE_RULES,messages:[{role:"user",content:"Review this "+item.type.replace("_"," ")+" marketing content for OKX compliance.\n\nContent name: "+item.name+"\nTarget region: "+item.targetRegion+contextBlock+"\n\n---\n"+item.content}]})});
   const data=await resp.json();
   if(data.error){throw new Error(data.error.message||"API error during scoring");}
   const text=data.content?.map(b=>b.text||"").join("")||"";
-  try{return JSON.parse(text.replace(/```json|```/g,"").trim());}
-  catch(e){console.error("Score parse error for "+item.name+". Raw:",text.slice(0,500));throw new Error("Failed to parse compliance score for '"+item.name+"'. Try again.");}
+  // Robust JSON parsing — find JSON between first { and last }
+  function tryParse(str){try{return JSON.parse(str);}catch(e){return null;}}
+  const firstBrace=text.indexOf("{");
+  const lastBrace=text.lastIndexOf("}");
+  if(firstBrace>=0&&lastBrace>firstBrace){
+    const parsed=tryParse(text.slice(firstBrace,lastBrace+1));
+    if(parsed&&parsed.scores)return parsed;
+  }
+  // Fallback: try cleaning backticks
+  const clean=text.replace(/```json|```/g,"").trim();
+  const parsed2=tryParse(clean);
+  if(parsed2&&parsed2.scores)return parsed2;
+  console.error("Score parse error for "+item.name+". Raw (first 500):",text.slice(0,500));
+  throw new Error("Failed to parse compliance score for '"+item.name+"'. Try again.");
 }
 
 async function runExtraction(){
